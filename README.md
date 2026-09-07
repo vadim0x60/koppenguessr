@@ -10,6 +10,11 @@ projects—not a competition to maximize game scores:
   climate classification using licensed geotagged photos, plus offline metadata
   auditing tools. Collection and training are not implemented or run yet.
 
+To continue the modeling work, start with the
+**[model handoff](koppenmodel/HANDOFF.md)**. It records the current blocker,
+pinned source and label decisions, implementation order, output contracts, and
+the exact boundary between runnable checks and future training commands.
+
 ## Play and develop
 
 [Play online](https://vadim0x60.github.io/koppengame/).

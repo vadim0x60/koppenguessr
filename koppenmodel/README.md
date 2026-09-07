@@ -13,6 +13,13 @@ include the offline game-metadata audit/view planner and a shared
 [built-up-land sampling pilot](../sampling/README.md) using a public GHSL raster.
 They do not yet implement the broader photo pipeline described here.
 
+The [image-source feasibility report](reports/image-source-feasibility.md)
+selects YFCC100M as the preferred pilot source, contingent on authorized access
+to its currently unavailable official metadata and per-license review. The
+public 2014 MMSys Flickr archive is only a technical fallback because it omits
+per-image licenses. The report also pins the corrected January 2026 Beck et al.
+Köppen–Geiger V3 raster and records a metadata-only label-coverage diagnostic.
+
 ## Research questions
 
 1. How much long-term climate information is recoverable from a single photo,
