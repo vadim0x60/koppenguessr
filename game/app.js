@@ -78,8 +78,7 @@ let streak = 0;
 let bestStreak = 0;
 let roundAnswered = false;
 let availableLocations = [];
-let activeSubtypeCodes = [];
-let hintsUsed = 0;
+let selectedSubtypeCodes = new Set();
 
 // DOM Elements
 const streetViewFrame = document.getElementById('streetview-frame');
@@ -88,11 +87,9 @@ const openMapBtn = document.getElementById('open-map-btn');
 const locNameEl = document.getElementById('location-name');
 const locCountryEl = document.getElementById('location-country');
 const locCoordsEl = document.getElementById('location-coords');
-const hintsList = document.getElementById('hints-list');
-const toggleHintsBtn = document.getElementById('toggle-hints-btn');
-const hintsContainer = document.getElementById('hints-container');
-const hintStatus = document.getElementById('hint-status');
 const optionsGrid = document.getElementById('options-grid');
+const selectionStatus = document.getElementById('selection-status');
+const submitGuessBtn = document.getElementById('submit-guess-btn');
 const resultFeedback = document.getElementById('result-feedback');
 const nextBtn = document.getElementById('next-btn');
 const scoreDisplay = document.getElementById('score-display');
@@ -152,7 +149,7 @@ function shuffleArray(array) {
 }
 
 function setupEventListeners() {
-  toggleHintsBtn.addEventListener('click', useHint);
+  submitGuessBtn.addEventListener('click', handleGuess);
 
   nextBtn.addEventListener('click', () => {
     startNewRound();
@@ -189,15 +186,9 @@ function startNewRound() {
   nextBtn.disabled = true;
   nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
-  // Reset progressive hints and start with every subtype available
-  activeSubtypeCodes = KOPPEN_CLASSES.map(climate => climate.code);
-  hintsUsed = 0;
-  hintsList.innerHTML = '';
-  hintsContainer.classList.add('hidden');
-  hintStatus.textContent = 'Each hint reveals a clue and eliminates about half of the wrong answers.';
-  toggleHintsBtn.disabled = false;
-  toggleHintsBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-  updateHintButton();
+  // Let the player define their own shortlist before submitting.
+  selectedSubtypeCodes = new Set();
+  updateSelectionStatus();
 
   // Blind location details during the question to prevent spoiling
   locNameEl.textContent = '??? Mystery Rural Location ???';
@@ -225,67 +216,68 @@ function startNewRound() {
 function renderOptions() {
   optionsGrid.innerHTML = '';
   KOPPEN_CLASSES
-    .filter(choice => activeSubtypeCodes.includes(choice.code))
     .forEach(choice => {
       const btn = document.createElement('button');
       btn.className = 'option-btn subtype-btn min-h-12 p-2 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 hover:border-slate-500 transition duration-150 flex items-center justify-center text-center shadow-sm';
       btn.dataset.code = choice.code;
       btn.title = `${choice.name}: ${choice.summary}`;
       btn.setAttribute('aria-label', `${choice.code}: ${choice.name}`);
+      btn.setAttribute('aria-pressed', 'false');
       btn.innerHTML = `
         <span class="font-mono text-base text-emerald-400 font-extrabold">${choice.code}</span>
       `;
-      btn.addEventListener('click', () => handleGuess(choice.code));
+      btn.addEventListener('click', () => toggleSelection(choice.code, btn));
       optionsGrid.appendChild(btn);
     });
 }
 
-function useHint() {
-  const loc = locations[currentIndex];
-  if (roundAnswered || hintsUsed >= loc.hints.length) return;
-
-  const wrongCodes = activeSubtypeCodes.filter(code => code !== loc.koppen_code);
-  shuffleArray(wrongCodes);
-  const targetChoiceCount = Math.ceil(activeSubtypeCodes.length / 2);
-  const wrongCodesToKeep = new Set(wrongCodes.slice(0, targetChoiceCount - 1));
-  activeSubtypeCodes = activeSubtypeCodes.filter(code =>
-    code === loc.koppen_code || wrongCodesToKeep.has(code)
-  );
-
-  const li = document.createElement('li');
-  li.className = 'text-sm text-slate-300 flex items-start gap-2 animate-fadeIn';
-  li.innerHTML = `<span class="text-emerald-400">🌿</span> <span>${loc.hints[hintsUsed]}</span>`;
-  hintsList.appendChild(li);
-  hintsContainer.classList.remove('hidden');
-
-  hintsUsed++;
-  hintStatus.textContent = `${activeSubtypeCodes.length} possible climates remain.`;
-  updateHintButton();
-  renderOptions();
-}
-
-function updateHintButton() {
-  const hintsLeft = locations[currentIndex].hints.length - hintsUsed;
-  toggleHintsBtn.querySelector('span:first-child').textContent = hintsLeft > 0
-    ? `💡 Use Hint (${hintsLeft} left)`
-    : '💡 All hints used';
-
-  if (hintsLeft === 0) {
-    toggleHintsBtn.disabled = true;
-    toggleHintsBtn.classList.add('opacity-50', 'cursor-not-allowed');
-  }
-}
-
-function handleGuess(userGuess) {
+function toggleSelection(code, button) {
   if (roundAnswered) return;
+
+  if (selectedSubtypeCodes.has(code)) {
+    selectedSubtypeCodes.delete(code);
+    button.classList.remove('border-sky-400', 'bg-sky-950/80', 'ring-2', 'ring-sky-500/40');
+    button.setAttribute('aria-pressed', 'false');
+  } else {
+    selectedSubtypeCodes.add(code);
+    button.classList.add('border-sky-400', 'bg-sky-950/80', 'ring-2', 'ring-sky-500/40');
+    button.setAttribute('aria-pressed', 'true');
+  }
+
+  updateSelectionStatus();
+}
+
+function updateSelectionStatus() {
+  const count = selectedSubtypeCodes.size;
+  selectionStatus.textContent = count === 0
+    ? 'Select one or more possible climates.'
+    : `${count} selected · worth ${formatPoints(1 / count)} if the answer is included`;
+  submitGuessBtn.disabled = count === 0;
+  submitGuessBtn.classList.toggle('opacity-50', count === 0);
+  submitGuessBtn.classList.toggle('cursor-not-allowed', count === 0);
+}
+
+function calculateRoundScore(selectedCodes, correctCode) {
+  return selectedCodes.includes(correctCode) ? 1 / selectedCodes.length : 0;
+}
+
+function formatPoints(points) {
+  return Number(points.toFixed(2)).toString();
+}
+
+function handleGuess() {
+  if (roundAnswered || selectedSubtypeCodes.size === 0) return;
   roundAnswered = true;
 
   const loc = locations[currentIndex];
   totalRounds++;
 
-  const isCorrect = userGuess === loc.koppen_code;
-  toggleHintsBtn.disabled = true;
-  toggleHintsBtn.classList.add('opacity-50', 'cursor-not-allowed');
+  const selectedCodes = [...selectedSubtypeCodes];
+  const roundScore = calculateRoundScore(selectedCodes, loc.koppen_code);
+  const isExact = roundScore === 1;
+  const earnsPartialScore = roundScore > 0 && !isExact;
+  submitGuessBtn.disabled = true;
+  submitGuessBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
   const optionButtons = optionsGrid.querySelectorAll('.option-btn');
   optionButtons.forEach(btn => {
@@ -297,7 +289,7 @@ function handleGuess(userGuess) {
 
     if (val === correctVal) {
       btn.classList.add('border-emerald-500', 'bg-emerald-950/70', 'ring-2', 'ring-emerald-500/50');
-    } else if (val === userGuess && !isCorrect) {
+    } else if (selectedSubtypeCodes.has(val)) {
       btn.classList.add('border-rose-500', 'bg-rose-950/70', 'ring-2', 'ring-rose-500/50');
     } else {
       btn.classList.add('opacity-40');
@@ -316,8 +308,8 @@ function handleGuess(userGuess) {
   openMapBtn.title = 'View in Google Maps';
 
   // Update Score & Streak
-  if (isCorrect) {
-    score++;
+  score += roundScore;
+  if (isExact) {
     streak++;
     if (streak > bestStreak) bestStreak = streak;
     resultFeedback.className = 'p-3 rounded-xl bg-emerald-950/80 border border-emerald-700/60 text-emerald-200 flex items-center justify-between animate-fadeIn';
@@ -330,6 +322,19 @@ function handleGuess(userGuess) {
         </div>
       </div>
       <span class="text-xs font-mono font-bold bg-emerald-800 text-emerald-100 px-2.5 py-1 rounded-full">+1 pt</span>
+    `;
+  } else if (earnsPartialScore) {
+    streak = 0;
+    resultFeedback.className = 'p-3 rounded-xl bg-sky-950/80 border border-sky-700/60 text-sky-200 flex items-center justify-between animate-fadeIn';
+    resultFeedback.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🎯</span>
+        <div>
+          <span class="font-bold text-white text-base">Good shortlist!</span>
+          <p class="text-xs text-sky-300"><strong>${loc.koppen_code}</strong> (${loc.koppen_name}) was among your ${selectedCodes.length} choices.</p>
+        </div>
+      </div>
+      <span class="text-xs font-mono font-bold bg-sky-800 text-sky-100 px-2.5 py-1 rounded-full">+${formatPoints(roundScore)} pts</span>
     `;
   } else {
     streak = 0;
@@ -355,7 +360,7 @@ function handleGuess(userGuess) {
   explanationCard.classList.remove('hidden');
 
   // Update Scoreboard
-  scoreDisplay.textContent = score;
+  scoreDisplay.textContent = formatPoints(score);
   streakDisplay.textContent = streak;
   const pct = Math.round((score / totalRounds) * 100);
   accuracyDisplay.textContent = `${pct}%`;

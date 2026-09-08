@@ -90,6 +90,8 @@
         overflow: visible;
       }
       #options-grid {
+        flex: none;
+        height: min(440px, 55svh);
         max-height: 440px;
       }
     }
@@ -162,7 +164,7 @@
         </div>
         <div class="w-px h-6 bg-slate-700 hidden sm:block"></div>
         <div class="text-center hidden sm:block">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Accuracy</div>
+          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Avg score</div>
           <div id="accuracy-display" class="font-mono text-sm sm:text-base font-extrabold text-sky-400">-</div>
         </div>
       </div>
@@ -236,30 +238,23 @@
     <!-- Right / Bottom: Question & Guessing Controls -->
     <div class="control-column flex flex-col gap-3">
       
-      <!-- Progressive Hints -->
-      <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 shadow-sm">
-        <button id="toggle-hints-btn" class="w-full text-left text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center justify-between transition">
-          <span>💡 Use Hint (3 left)</span>
-          <span class="text-slate-500 text-[10px]">Narrow choices</span>
-        </button>
-        <p id="hint-status" class="mt-1 text-[11px] text-slate-500">Each hint reveals a clue and eliminates about half of the wrong answers.</p>
-        <div id="hints-container" class="hidden mt-2 pt-2 border-t border-slate-800/80">
-          <ul id="hints-list" class="space-y-1.5">
-            <!-- Revealed progressively -->
-          </ul>
-        </div>
-      </div>
-
       <!-- Question Panel -->
       <div class="question-panel bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3 flex-1">
         <div>
           <h3 class="font-bold text-base text-white">What Köppen climate zone is this?</h3>
-          <p class="text-xs text-slate-400 mt-0.5">Choose from every subtype, or spend hints to narrow the field:</p>
+          <p class="text-xs text-slate-400 mt-0.5">Select every plausible climate. If the answer is included, you earn 1 ÷ choices.</p>
         </div>
 
         <!-- Options Container -->
         <div id="options-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 overflow-y-auto pr-1 content-start flex-1">
           <!-- Dynamically populated buttons -->
+        </div>
+
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-2.5">
+          <p id="selection-status" class="text-[11px] text-slate-400">Select one or more possible climates.</p>
+          <button id="submit-guess-btn" disabled class="shrink-0 py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition opacity-50 cursor-not-allowed">
+            Submit shortlist
+          </button>
         </div>
 
         <!-- Result / Feedback Banner -->

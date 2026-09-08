@@ -33,6 +33,18 @@ test('game initializes its deck from exactly the reproducible selection', async 
   assert.equal(vm.runInContext('availableLocations.length', context), ids.length);
 });
 
+test('shortlist scoring rewards precision and requires the correct climate', () => {
+  const context = vm.createContext({
+    document: { getElementById: () => ({}) },
+    window: { addEventListener: () => {} },
+  });
+  vm.runInContext(script, context);
+
+  assert.equal(vm.runInContext("calculateRoundScore(['Cfb'], 'Cfb')", context), 1);
+  assert.equal(vm.runInContext("calculateRoundScore(['Cfb', 'Cfc'], 'Cfb')", context), 0.5);
+  assert.equal(vm.runInContext("calculateRoundScore(['Cfa', 'Cfc'], 'Cfb')", context), 0);
+});
+
 for (const [name, overrides] of [
   ['missing', { ok: false }],
   ['stale', { json: async () => ({ ...selection, source_sha256: 'stale' }) }],
