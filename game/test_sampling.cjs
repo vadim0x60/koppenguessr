@@ -33,16 +33,18 @@ test('game initializes its deck from exactly the reproducible selection', async 
   assert.equal(vm.runInContext('availableLocations.length', context), ids.length);
 });
 
-test('shortlist scoring rewards precision and requires the correct climate', () => {
+test('guess scoring awards proportional credit for letters in matching positions', () => {
   const context = vm.createContext({
     document: { getElementById: () => ({}) },
     window: { addEventListener: () => {} },
   });
   vm.runInContext(script, context);
 
-  assert.equal(vm.runInContext("calculateRoundScore(['Cfb'], 'Cfb')", context), 1);
-  assert.equal(vm.runInContext("calculateRoundScore(['Cfb', 'Cfc'], 'Cfb')", context), 0.5);
-  assert.equal(vm.runInContext("calculateRoundScore(['Cfa', 'Cfc'], 'Cfb')", context), 0);
+  assert.equal(vm.runInContext("calculateRoundScore('Cfb', 'Cfb')", context), 1);
+  assert.equal(vm.runInContext("calculateRoundScore('Cfc', 'Cfb')", context), 2 / 3);
+  assert.equal(vm.runInContext("calculateRoundScore('Cwa', 'Cfb')", context), 1 / 3);
+  assert.equal(vm.runInContext("calculateRoundScore('Dwa', 'Cfb')", context), 0);
+  assert.equal(vm.runInContext("calculateRoundScore('Af', 'Aw/As')", context), 1 / 2);
 });
 
 for (const [name, overrides] of [

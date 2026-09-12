@@ -7,7 +7,7 @@ A GeoGuessr-inspired geography and climatology game that drops you into a myster
 ## ✨ Features
 
 - **Interactive 360° Street View**: Look around, pan, zoom, and inspect flora, soil, topography, sunlight angle, and architecture.
-- **Player-made Shortlists**: Select every climate type you think is plausible, then submit the set. An exact answer earns 1 point; a shortlist containing the answer earns `1 ÷ choices` points.
+- **Partial-credit Guesses**: Choose one climate type. An exact answer earns 1 point, while letters that match in the same position earn proportional partial credit.
 - **Full Educational Explanations**: Detailed breakdown after each guess showing why that region has that specific Köppen code (temperature thresholds, rainfall seasonality, ocean currents, rain shadows).
 - **In-Game Reference Guide**: A built-in modal with quick summaries of the entire Köppen classification scheme.
 - **Stats & Streaks**: Tracks rounds, current streak, high streak, and overall accuracy.

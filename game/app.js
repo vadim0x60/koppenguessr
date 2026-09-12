@@ -78,7 +78,7 @@ let streak = 0;
 let bestStreak = 0;
 let roundAnswered = false;
 let availableLocations = [];
-let selectedSubtypeCodes = new Set();
+let selectedSubtypeCode = null;
 
 // DOM Elements
 const streetViewFrame = document.getElementById('streetview-frame');
@@ -88,8 +88,6 @@ const locNameEl = document.getElementById('location-name');
 const locCountryEl = document.getElementById('location-country');
 const locCoordsEl = document.getElementById('location-coords');
 const optionsGrid = document.getElementById('options-grid');
-const selectionStatus = document.getElementById('selection-status');
-const submitGuessBtn = document.getElementById('submit-guess-btn');
 const resultFeedback = document.getElementById('result-feedback');
 const nextBtn = document.getElementById('next-btn');
 const scoreDisplay = document.getElementById('score-display');
@@ -149,8 +147,6 @@ function shuffleArray(array) {
 }
 
 function setupEventListeners() {
-  submitGuessBtn.addEventListener('click', handleGuess);
-
   nextBtn.addEventListener('click', () => {
     startNewRound();
   });
@@ -186,9 +182,7 @@ function startNewRound() {
   nextBtn.disabled = true;
   nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
-  // Let the player define their own shortlist before submitting.
-  selectedSubtypeCodes = new Set();
-  updateSelectionStatus();
+  selectedSubtypeCode = null;
 
   // Blind location details during the question to prevent spoiling
   locNameEl.textContent = '??? Mystery Rural Location ???';
@@ -198,7 +192,7 @@ function startNewRound() {
   // Lock "Open in Maps" button during guessing to prevent external spoiler
   openMapBtn.classList.add('opacity-40', 'cursor-not-allowed');
   openMapBtn.href = 'javascript:void(0)';
-  openMapBtn.title = 'Available after you submit your answer';
+  openMapBtn.title = 'Available after you choose an answer';
 
   // Load interactive Street View iframe (no API key required, zero referer errors)
   const embedUrl = loc.pano_id 
@@ -226,39 +220,31 @@ function renderOptions() {
       btn.innerHTML = `
         <span class="font-mono text-base text-emerald-400 font-extrabold">${choice.code}</span>
       `;
-      btn.addEventListener('click', () => toggleSelection(choice.code, btn));
+      btn.addEventListener('click', () => selectAnswer(choice.code, btn));
       optionsGrid.appendChild(btn);
     });
 }
 
-function toggleSelection(code, button) {
+function selectAnswer(code, button) {
   if (roundAnswered) return;
 
-  if (selectedSubtypeCodes.has(code)) {
-    selectedSubtypeCodes.delete(code);
-    button.classList.remove('border-sky-400', 'bg-sky-950/80', 'ring-2', 'ring-sky-500/40');
-    button.setAttribute('aria-pressed', 'false');
-  } else {
-    selectedSubtypeCodes.add(code);
-    button.classList.add('border-sky-400', 'bg-sky-950/80', 'ring-2', 'ring-sky-500/40');
-    button.setAttribute('aria-pressed', 'true');
-  }
-
-  updateSelectionStatus();
+  selectedSubtypeCode = code;
+  button.classList.add('border-sky-400', 'bg-sky-950/80', 'ring-2', 'ring-sky-500/40');
+  button.setAttribute('aria-pressed', 'true');
+  handleGuess();
 }
 
-function updateSelectionStatus() {
-  const count = selectedSubtypeCodes.size;
-  selectionStatus.textContent = count === 0
-    ? 'Select one or more possible climates.'
-    : `${count} selected · worth ${formatPoints(1 / count)} if the answer is included`;
-  submitGuessBtn.disabled = count === 0;
-  submitGuessBtn.classList.toggle('opacity-50', count === 0);
-  submitGuessBtn.classList.toggle('cursor-not-allowed', count === 0);
-}
+function calculateRoundScore(selectedCode, correctCode) {
+  const selectedVariants = selectedCode.split('/');
+  const correctVariants = correctCode.split('/');
 
-function calculateRoundScore(selectedCodes, correctCode) {
-  return selectedCodes.includes(correctCode) ? 1 / selectedCodes.length : 0;
+  return Math.max(...selectedVariants.flatMap(selected => correctVariants.map(correct => {
+    let matchingLetters = 0;
+    for (let i = 0; i < Math.min(selected.length, correct.length); i++) {
+      if (selected[i] === correct[i]) matchingLetters++;
+    }
+    return matchingLetters / Math.max(selected.length, correct.length);
+  })));
 }
 
 function formatPoints(points) {
@@ -266,18 +252,15 @@ function formatPoints(points) {
 }
 
 function handleGuess() {
-  if (roundAnswered || selectedSubtypeCodes.size === 0) return;
+  if (roundAnswered || selectedSubtypeCode === null) return;
   roundAnswered = true;
 
   const loc = locations[currentIndex];
   totalRounds++;
 
-  const selectedCodes = [...selectedSubtypeCodes];
-  const roundScore = calculateRoundScore(selectedCodes, loc.koppen_code);
-  const isExact = roundScore === 1;
+  const roundScore = calculateRoundScore(selectedSubtypeCode, loc.koppen_code);
+  const isExact = selectedSubtypeCode === loc.koppen_code;
   const earnsPartialScore = roundScore > 0 && !isExact;
-  submitGuessBtn.disabled = true;
-  submitGuessBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
   const optionButtons = optionsGrid.querySelectorAll('.option-btn');
   optionButtons.forEach(btn => {
@@ -289,7 +272,9 @@ function handleGuess() {
 
     if (val === correctVal) {
       btn.classList.add('border-emerald-500', 'bg-emerald-950/70', 'ring-2', 'ring-emerald-500/50');
-    } else if (selectedSubtypeCodes.has(val)) {
+    } else if (val === selectedSubtypeCode && earnsPartialScore) {
+      btn.classList.add('border-sky-500', 'bg-sky-950/70', 'ring-2', 'ring-sky-500/50');
+    } else if (val === selectedSubtypeCode) {
       btn.classList.add('border-rose-500', 'bg-rose-950/70', 'ring-2', 'ring-rose-500/50');
     } else {
       btn.classList.add('opacity-40');
@@ -330,8 +315,8 @@ function handleGuess() {
       <div class="flex items-center gap-2">
         <span class="text-2xl">🎯</span>
         <div>
-          <span class="font-bold text-white text-base">Good shortlist!</span>
-          <p class="text-xs text-sky-300"><strong>${loc.koppen_code}</strong> (${loc.koppen_name}) was among your ${selectedCodes.length} choices.</p>
+          <span class="font-bold text-white text-base">Close!</span>
+          <p class="text-xs text-sky-300">Your <strong>${selectedSubtypeCode}</strong> guess partially matches <strong>${loc.koppen_code}</strong> (${loc.koppen_name}).</p>
         </div>
       </div>
       <span class="text-xs font-mono font-bold bg-sky-800 text-sky-100 px-2.5 py-1 rounded-full">+${formatPoints(roundScore)} pts</span>
